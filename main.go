@@ -6,28 +6,29 @@
 package main
 
 import (
-    "flag"
-    "fmt"
-    "os"
-    "runtime"
+	"flag"
+	"fmt"
+	"os"
+	"runtime"
+	"time"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
 //
 
 var (
-    // Actual values will be filled by -X options in Makefile, these values
-    // are here in case somebody uses 'go run .'.
+	// Actual values will be filled by -X options in Makefile, these values
+	// are here in case somebody uses 'go run .'.
 
-    prog_name       string = "rmweb"
-    prog_version    string = "(unset)"
-    prog_date       string = "(unset)"
-    prog_hash       string = ""
-    prog_desc       string = ""
+	prog_name    string = "rmweb"
+	prog_version string = "(unset)"
+	prog_date    string = "(unset)"
+	prog_hash    string = ""
+	prog_desc    string = ""
 
-    // Hard-coded, not set by 'make'
+	// Hard-coded, not set by 'make'
 
-    prog_url        string = "https://github.com/kg4zow/rmweb/"
+	prog_url string = "https://github.com/kg4zow/rmweb/"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -38,34 +39,35 @@ var (
 // be sure to update the check at the end of download_rmdoc() to check for
 // the new file types.
 
-var flag_debug      bool    = false
-var flag_overwrite  bool    = false
-var flag_collapse   bool    = false
-var tablet_addr     string  = "10.11.99.1"
-var flag_dl_pdf     bool    = false         // default is set in main() below
-var flag_dl_rmdoc   bool    = false         // default is set in main() below
+var flag_debug bool = false
+var flag_overwrite bool = false
+var flag_collapse bool = false
+var tablet_addr string = "10.11.99.1"
+var flag_dl_pdf bool = false   // default is set in main() below
+var flag_dl_rmdoc bool = false // default is set in main() below
 
 ////////////////////////////////////////
 // All files and directories on the tablet
 
 type DocInfo struct {
-    id              string
-    parent          string
-    folder          bool
-    name            string
-    full_name       string
-    size            int64
-    pages           int64
-    find_by         string
+	id              string
+	parent          string
+	folder          bool
+	name            string
+	full_name       string
+	size            int64
+	pages           int64
+	find_by         string
+	modified_client time.Time
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //
 // usage
 
-func usage( ) {
+func usage() {
 
-    msg := `%s [options] COMMAND [...]
+	msg := `%s [options] COMMAND [...]
 
 Download files from a reMarkable tablet.
 
@@ -111,28 +113,28 @@ will be selected.
 
 `
 
-    fmt.Printf( msg , prog_name )
+	fmt.Printf(msg, prog_name)
 
-    os.Exit( 0 )
+	os.Exit(0)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //
 // Show version info
 
-func do_version( args ...string ) {
-    fmt.Printf( "%s-%s-%s version %s\n" ,
-        prog_name , runtime.GOOS , runtime.GOARCH , prog_version )
+func do_version(args ...string) {
+	fmt.Printf("%s-%s-%s version %s\n",
+		prog_name, runtime.GOOS, runtime.GOARCH, prog_version)
 
-    if prog_desc != "" {
-        fmt.Printf( "Built %s from %s\n" , prog_date , prog_desc )
-    } else if prog_hash != "" {
-        fmt.Printf( "Built %s from commit %s\n" , prog_date , prog_hash )
-    } else {
-        fmt.Printf( "Built %s\n" , prog_date )
-    }
+	if prog_desc != "" {
+		fmt.Printf("Built %s from %s\n", prog_date, prog_desc)
+	} else if prog_hash != "" {
+		fmt.Printf("Built %s from commit %s\n", prog_date, prog_hash)
+	} else {
+		fmt.Printf("Built %s\n", prog_date)
+	}
 
-    fmt.Println( prog_url )
+	fmt.Println(prog_url)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -140,12 +142,12 @@ func do_version( args ...string ) {
 // Show deprecation messages
 
 func do_backup() {
-    msg := `The 'backup' command has been deprecated.
+	msg := `The 'backup' command has been deprecated.
 Please use 'download' instead.
 `
 
-    fmt.Print( msg )
-    os.Exit( 1 )
+	fmt.Print(msg)
+	os.Exit(1)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -154,60 +156,66 @@ Please use 'download' instead.
 
 func main() {
 
-    ////////////////////////////////////////
-    // Parse command line options
+	////////////////////////////////////////
+	// Parse command line options
 
-    var helpme      bool    = false
-    var want_pdf    bool    = false
-    var want_rmdoc  bool    = false
-    var want_all    bool    = false
+	var helpme bool = false
+	var want_pdf bool = false
+	var want_rmdoc bool = false
+	var want_all bool = false
 
-    flag.Usage = usage
-    flag.BoolVar  ( &helpme         , "h" , helpme         , "" )
-    flag.BoolVar  ( &flag_debug     , "D" , flag_debug     , "" )
-    flag.BoolVar  ( &flag_overwrite , "f" , flag_overwrite , "" )
-    flag.BoolVar  ( &flag_collapse  , "c" , flag_collapse  , "" )
-    flag.StringVar( &tablet_addr    , "I" , tablet_addr    , "" )
-    flag.BoolVar  ( &want_pdf       , "p" , want_pdf       , "" )
-    flag.BoolVar  ( &want_rmdoc     , "d" , want_rmdoc     , "" )
-    flag.BoolVar  ( &want_all       , "a" , want_all       , "" )
-    flag.Parse()
+	flag.Usage = usage
+	flag.BoolVar(&helpme, "h", helpme, "")
+	flag.BoolVar(&flag_debug, "D", flag_debug, "")
+	flag.BoolVar(&flag_overwrite, "f", flag_overwrite, "")
+	flag.BoolVar(&flag_collapse, "c", flag_collapse, "")
+	flag.StringVar(&tablet_addr, "I", tablet_addr, "")
+	flag.BoolVar(&want_pdf, "p", want_pdf, "")
+	flag.BoolVar(&want_rmdoc, "d", want_rmdoc, "")
+	flag.BoolVar(&want_all, "a", want_all, "")
+	flag.Parse()
 
-    ////////////////////////////////////////
-    // If they used '-h', show usage
+	////////////////////////////////////////
+	// If they used '-h', show usage
 
-    if ( helpme ) {
-        usage()
-    }
+	if helpme {
+		usage()
+	}
 
-    ////////////////////////////////////////
-    // Figure out which file type options were requested
+	////////////////////////////////////////
+	// Figure out which file type options were requested
 
-    if want_all {
-        flag_dl_pdf     = true
-        flag_dl_rmdoc   = true
-    } else if want_pdf || want_rmdoc {
-        flag_dl_pdf     = want_pdf
-        flag_dl_rmdoc   = want_rmdoc
-    } else {
-        flag_dl_pdf     = true
-        flag_dl_rmdoc   = false
-    }
+	if want_all {
+		flag_dl_pdf = true
+		flag_dl_rmdoc = true
+	} else if want_pdf || want_rmdoc {
+		flag_dl_pdf = want_pdf
+		flag_dl_rmdoc = want_rmdoc
+	} else {
+		flag_dl_pdf = true
+		flag_dl_rmdoc = false
+	}
 
-    ////////////////////////////////////////
-    // Figure out which command we're being asked to run
+	////////////////////////////////////////
+	// Figure out which command we're being asked to run
 
-    if len( flag.Args() ) > 0 {
-        switch flag.Args()[0] {
-            case "help"     : usage()
-            case "version"  : do_version()
-            case "backup"   : do_backup()
-            case "list"     : do_list     ( flag.Args()[1:]... )
-            case "download" : do_download ( flag.Args()[1:]... )
-            default         : usage()
-        }
-    } else {
-        usage()
-    }
+	if len(flag.Args()) > 0 {
+		switch flag.Args()[0] {
+		case "help":
+			usage()
+		case "version":
+			do_version()
+		case "backup":
+			do_backup()
+		case "list":
+			do_list(flag.Args()[1:]...)
+		case "download":
+			do_download(flag.Args()[1:]...)
+		default:
+			usage()
+		}
+	} else {
+		usage()
+	}
 
 }

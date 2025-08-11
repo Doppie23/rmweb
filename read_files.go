@@ -8,20 +8,21 @@
 package main
 
 import (
-    "bytes"
-    "encoding/json"
-    "fmt"
-    "io"
-    "log"
-    "net/http"
-    "strings"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"strings"
+	"time"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
 //
 // Replace problematic characters in documents' visible names
 
-var name_cleaner = strings.NewReplacer( "/" , "_" , "\\" , "_" , ":" , "_" )
+var name_cleaner = strings.NewReplacer("/", "_", "\\", "_", ":", "_")
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -32,154 +33,160 @@ var name_cleaner = strings.NewReplacer( "/" , "_" , "\\" , "_" , ":" , "_" )
 //
 // Returns a map of IDs pointing to DocInfo structures.
 
-func read_files() ( map[string]DocInfo ) {
+func read_files() map[string]DocInfo {
 
-    ////////////////////////////////////////
-    // Start map to store file/dir info
+	////////////////////////////////////////
+	// Start map to store file/dir info
 
-    rv := make( map [string]DocInfo )
+	rv := make(map[string]DocInfo)
 
-    ////////////////////////////////////////////////////////////
-    // Process directories until there are no more
+	////////////////////////////////////////////////////////////
+	// Process directories until there are no more
 
-    l_dirs := []string{ "" }
-    for len( l_dirs ) > 0 {
+	l_dirs := []string{""}
+	for len(l_dirs) > 0 {
 
-        ////////////////////////////////////////
-        // Get the first directory name from the array
+		////////////////////////////////////////
+		// Get the first directory name from the array
 
-        this_dir    := l_dirs[0]
-        l_dirs      =  l_dirs[1:]
+		this_dir := l_dirs[0]
+		l_dirs = l_dirs[1:]
 
-        ////////////////////////////////////////
-        // Request info about this directory
+		////////////////////////////////////////
+		// Request info about this directory
 
-        url             := "http://" + tablet_addr + "/documents" + this_dir + "/"
-        content_type    := "application/json"
-        buf             := bytes.NewBufferString( "" )
+		url := "http://" + tablet_addr + "/documents" + this_dir + "/"
+		content_type := "application/json"
+		buf := bytes.NewBufferString("")
 
-        if flag_debug {
-            fmt.Println( "/========================================" )
-            fmt.Println( "POST " + url )
-        }
+		if flag_debug {
+			fmt.Println("/========================================")
+			fmt.Println("POST " + url)
+		}
 
-        resp, err := http.Post( url , content_type , buf )
-        if err != nil {
-            log.Fatal( err )
-        }
+		resp, err := http.Post(url, content_type, buf)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-        defer resp.Body.Close()
+		defer resp.Body.Close()
 
-        ////////////////////////////////////////
-        // Read the response into memory
+		////////////////////////////////////////
+		// Read the response into memory
 
-        resp_bytes,err := io.ReadAll( resp.Body )
-        if ( err != nil ) {
-            log.Fatal( err )
-        }
+		resp_bytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-        if flag_debug {
-            fmt.Print( string( resp_bytes[:] ) )
-            fmt.Println( "\\========================================" )
-        }
+		if flag_debug {
+			fmt.Print(string(resp_bytes[:]))
+			fmt.Println("\\========================================")
+		}
 
-        ////////////////////////////////////////
-        // Parse the response
+		////////////////////////////////////////
+		// Parse the response
 
-        var data []map[string]interface{}
+		var data []map[string]interface{}
 
-        err = json.Unmarshal( resp_bytes , &data )
-        if err != nil {
-            log.Fatal(err)
-        }
+		err = json.Unmarshal(resp_bytes, &data)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-        ////////////////////////////////////////
-        // process items within response
+		////////////////////////////////////////
+		// process items within response
 
-        for _,v := range data {
+		for _, v := range data {
 
-            ////////////////////////////////////////
-            // Get info about this item
+			////////////////////////////////////////
+			// Get info about this item
 
-            var size    int64
-            var pages   int
+			var size int64
+			var pages int
 
-            id          := v["ID"].(string)
-            parent      := v["Parent"].(string)
-            folder      := bool( v["Type"].(string) == "CollectionType" )
-            vis_name    := v["VissibleName"].(string)
+			id := v["ID"].(string)
+			parent := v["Parent"].(string)
+			folder := bool(v["Type"].(string) == "CollectionType")
+			vis_name := v["VissibleName"].(string)
 
-            ////////////////////////////////////////
-            // Convert all '/', '\', and ':' with underscores
+			modified_client, err := time.Parse(time.RFC3339Nano, v["ModifiedClient"].(string))
+			if err != nil {
+				log.Fatal(err)
+			}
 
-            name := name_cleaner.Replace( vis_name )
+			////////////////////////////////////////
+			// Convert all '/', '\', and ':' with underscores
 
-            ////////////////////////////////////////
-            // Get size and page count from data
+			name := name_cleaner.Replace(vis_name)
 
-            if ! folder {
-                if _,ok := v["sizeInBytes"] ; ok {
-                    fmt.Sscan( v["sizeInBytes"].(string) , &size )
-                    list_size = true
-                }
+			////////////////////////////////////////
+			// Get size and page count from data
 
-                if _,ok := v["pageCount"] ; ok {
-                    pages = int( v["pageCount"].(float64) )
-                    list_pages = true
-                }
-            }
+			if !folder {
+				if _, ok := v["sizeInBytes"]; ok {
+					fmt.Sscan(v["sizeInBytes"].(string), &size)
+					list_size = true
+				}
 
-            if flag_debug {
-                fmt.Printf( "%s  %-5t  %s\n" , id , folder , name )
-            }
+				if _, ok := v["pageCount"]; ok {
+					pages = int(v["pageCount"].(float64))
+					list_pages = true
+				}
+			}
 
-            ////////////////////////////////////////
-            // Build user-facing name for this item
+			if flag_debug {
+				fmt.Printf("%s  %-5t  %s\n", id, folder, name)
+			}
 
-            parent_name := ""
-            if parent != "" {
-                parent_name = rv[parent].full_name
-            }
+			////////////////////////////////////////
+			// Build user-facing name for this item
 
-            full_name := name
+			parent_name := ""
+			if parent != "" {
+				parent_name = rv[parent].full_name
+			}
 
-            if ! flag_collapse {
-                full_name = parent_name + "/" + name
-            }
+			full_name := name
 
-            if full_name[0] == '/' {
-                full_name = full_name[1:]
-            }
+			if !flag_collapse {
+				full_name = parent_name + "/" + name
+			}
 
-            ////////////////////////////////////////
-            // Remember this item
+			if full_name[0] == '/' {
+				full_name = full_name[1:]
+			}
 
-            var f DocInfo
+			////////////////////////////////////////
+			// Remember this item
 
-            f.id            = id
-            f.parent        = parent
-            f.folder        = folder
-            f.name          = name
-            f.full_name     = full_name
-            f.size          = int64( size )
-            f.pages         = int64( pages )
-            f.find_by       = strings.ToLower( name )
+			var f DocInfo
 
-            rv[f.id] = f
+			f.id = id
+			f.parent = parent
+			f.folder = folder
+			f.name = name
+			f.full_name = full_name
+			f.size = int64(size)
+			f.pages = int64(pages)
+			f.find_by = strings.ToLower(name)
+			f.modified_client = modified_client
 
-            ////////////////////////////////////////
-            // If this item is a folder, add it to the list
-            // so it also gets scanned
+			rv[f.id] = f
 
-            if folder {
-                l_dirs = append( l_dirs , string( this_dir + "/" + id ) )
-            }
+			////////////////////////////////////////
+			// If this item is a folder, add it to the list
+			// so it also gets scanned
 
-        } // for range data
-    } // for len( l_dirs ) > 0
+			if folder {
+				l_dirs = append(l_dirs, string(this_dir+"/"+id))
+			}
 
-    ////////////////////////////////////////
-    // Return the files and directories
+		} // for range data
+	} // for len( l_dirs ) > 0
 
-    return rv
+	////////////////////////////////////////
+	// Return the files and directories
+
+	return rv
 }
