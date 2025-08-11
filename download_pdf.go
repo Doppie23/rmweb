@@ -8,109 +8,109 @@
 package main
 
 import (
-    "fmt"
-    "io"
-    "io/fs"
-    "net/http"
-    "os"
+	"fmt"
+	"io"
+	"io/fs"
+	"net/http"
+	"os"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
 //
 // Download a PDF file
 
-func download_pdf( uuid string , localfile string ) {
+func download_pdf(uuid string, localfile string) {
 
-    ////////////////////////////////////////////////////////////
-    // If the output filename contains any directory names,
-    // make sure any necessary directories exist.
+	////////////////////////////////////////////////////////////
+	// If the output filename contains any directory names,
+	// make sure any necessary directories exist.
 
-    for n := 1 ; n < len( localfile ) ; n ++ {
-        if localfile[n] == '/' {
-            dir := localfile[:n]
+	for n := 1; n < len(localfile); n++ {
+		if localfile[n] == '/' {
+			dir := localfile[:n]
 
-            if flag_debug {
-                fmt.Printf( "checking dir='%s'\n" , dir )
-            }
+			if flag_debug {
+				fmt.Printf("checking dir='%s'\n", dir)
+			}
 
-            ////////////////////////////////////////
-            // Check the directory
+			////////////////////////////////////////
+			// Check the directory
 
-            s,err := os.Stat( dir )
-            if os.IsNotExist( err ) {
-                ////////////////////////////////////////
-                // doesn't exist yet - create it
+			s, err := os.Stat(dir)
+			if os.IsNotExist(err) {
+				////////////////////////////////////////
+				// doesn't exist yet - create it
 
-                fmt.Printf( "Creating    '%s' ..." , dir )
+				fmt.Printf("Creating    '%s' ...", dir)
 
-                err := os.Mkdir( dir , 0755 )
-                if err != nil {
-                    fmt.Printf( "ERROR: %v\n" , err )
-                    os.Exit( 1 )
-                }
+				err := os.Mkdir(dir, 0755)
+				if err != nil {
+					fmt.Printf("ERROR: %v\n", err)
+					os.Exit(1)
+				}
 
-                fmt.Println( " ok" )
+				fmt.Println(" ok")
 
-            } else if err != nil {
-                ////////////////////////////////////////
-                // os.Stat() had some other error
+			} else if err != nil {
+				////////////////////////////////////////
+				// os.Stat() had some other error
 
-                fmt.Printf( "ERROR: os.Stat('%s'): %v\n" , dir , err )
-                os.Exit( 1 )
+				fmt.Printf("ERROR: os.Stat('%s'): %v\n", dir, err)
+				os.Exit(1)
 
-            } else if ( ( s.Mode() & fs.ModeDir ) == 0 ) {
-                ////////////////////////////////////////
-                // exists and is not a directory
+			} else if (s.Mode() & fs.ModeDir) == 0 {
+				////////////////////////////////////////
+				// exists and is not a directory
 
-                fmt.Printf( "ERROR: '%s' exists and is not a directory\n" , dir )
-                os.Exit( 1 )
-            }
+				fmt.Printf("ERROR: '%s' exists and is not a directory\n", dir)
+				os.Exit(1)
+			}
 
-        } // if localfile[n] == '/'
-    } // for n
+		} // if localfile[n] == '/'
+	} // for n
 
-    ////////////////////////////////////////////////////////////
-    // Download the file
+	////////////////////////////////////////////////////////////
+	// Download the file
 
-    fmt.Printf( "Downloading '%s' ... " , localfile )
+	fmt.Printf("Downloading '%s'\n", localfile)
 
-    ////////////////////////////////////////
-    // Request the file
+	////////////////////////////////////////
+	// Request the file
 
-    url := "http://" + tablet_addr + "/download/" + uuid + "/placeholder"
+	url := "http://" + tablet_addr + "/download/" + uuid + "/placeholder"
 
-    resp, err := http.Get( url )
-    if err != nil {
-        fmt.Printf( "ERROR: %v" , err )
-        os.Exit( 1 )
-    }
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Printf("ERROR: %v", err)
+		os.Exit(1)
+	}
 
-    defer resp.Body.Close()
+	defer resp.Body.Close()
 
-    ////////////////////////////////////////
-    // Create output file
+	////////////////////////////////////////
+	// Create output file
 
-    dest, err := os.Create( localfile )
-    if err != nil {
-        fmt.Printf( "ERROR: os.Create('%s'): %v" , localfile , err )
-        os.Exit( 1 )
-    }
+	dest, err := os.Create(localfile)
+	if err != nil {
+		fmt.Printf("ERROR: os.Create('%s'): %v", localfile, err)
+		os.Exit(1)
+	}
 
-    defer dest.Close()
+	defer dest.Close()
 
-    ////////////////////////////////////////
-    // Copy the output to the file
+	////////////////////////////////////////
+	// Copy the output to the file
 
-    var src io.Reader = &PassThru{ Reader: resp.Body }
+	var src io.Reader = &PassThru{Reader: resp.Body}
 
-    total, err := io.Copy( dest , src )
-    if err != nil {
-        fmt.Printf( "ERROR: os.Copy(): %v" , err )
-        os.Exit( 1 )
-    }
+	_, err = io.Copy(dest, src)
+	if err != nil {
+		fmt.Printf("ERROR: os.Copy(): %v", err)
+		os.Exit(1)
+	}
 
-    ////////////////////////////////////////
-    // done
+	////////////////////////////////////////
+	// done
 
-    fmt.Printf( "%d ... ok\n" , total )
+	// fmt.Printf( "%d ... ok\n" , total )
 }

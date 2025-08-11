@@ -27,14 +27,14 @@ type PassThru struct {
 
 func (pt *PassThru) Read(p []byte) (int, error) {
 	n, err := pt.Reader.Read(p)
-	pt.total += int64(n)
+	// pt.total += int64(n)
 
-	if err == nil {
-		x := fmt.Sprintf("%d", pt.total)
-		b := fmt.Sprintf(strings.Repeat("\b", len(x)))
-
-		fmt.Print(x, b)
-	}
+	// if err == nil {
+	// 	x := fmt.Sprintf("%d", pt.total)
+	// 	b := fmt.Sprintf(strings.Repeat("\b", len(x)))
+	//
+	// 	fmt.Print(x, b)
+	// }
 
 	return n, err
 }
@@ -150,7 +150,7 @@ func do_download(args ...string) {
 
 	// delete local files that we did not encounter in the_files
 	for _, localFile := range local_files {
-		fmt.Println("Deleting local file:", localFile.FullPath)
+		fmt.Println("Deleting local file: ", localFile.FullPath)
 		err := os.Remove(localFile.FullPath)
 		if err != nil {
 			fmt.Println("error deleting local file:", localFile.FullPath, err)
